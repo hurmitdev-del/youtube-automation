@@ -36,23 +36,39 @@ const pipeline = new UploadPipeline({
     uploadRepository,
 });
 
-app.get('/health', async () => {
+app.get('/', (_, res)=>{
+    res.send(`HTTP server listening on port ${port}`);
+})
+
+app.get('/health', async (_, res) => {
+    const auth = _.headers.authorization;
+
+    if (auth !== `Bearer ${env.API_TOKEN}`) {
+        return res.status(401).send({
+            success: false,
+            message: 'Unauthorized',
+        });
+    }
     const healthCheckStatus = await healthCheck();
-    return healthCheckStatus
+    const allOk = healthCheckStatus.every((r) => r.ok)
+    if (allOk)
+        return res.status(200).send(healthCheckStatus);
+
+    return res.status(500).send(healthCheckStatus)
 });
 
-app.post('/upload', async (request: any, reply: any) => {
+app.post('/upload', async (request: any, res: any) => {
     const auth = request.headers.authorization;
 
     if (auth !== `Bearer ${env.API_TOKEN}`) {
-        return reply.status(401).send({
+        return res.status(401).send({
             success: false,
             message: 'Unauthorized',
         });
     }
 
     if (running) {
-        return reply.status(409).send({
+        return res.status(409).send({
             success: false,
             message: 'Upload pipeline already running',
         });
@@ -72,7 +88,7 @@ app.post('/upload', async (request: any, reply: any) => {
     } catch (err) {
         logger.error(err, 'Pipeline execution failed');
 
-        return reply.status(500).send({
+        return res.status(500).send({
             success: false,
             message: 'Pipeline execution failed',
         });
