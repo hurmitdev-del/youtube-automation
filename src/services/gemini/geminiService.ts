@@ -34,8 +34,6 @@ export class GeminiService {
   async generateMetadata(): Promise<VideoMetadata> {
     const prompt = buildMetadataPrompt();
 
-    logger.info({ generatedPrompt : JSON.stringify(prompt) });
-
     const rawText = await withRetry(() => this.callGemini(prompt), {
       retries: 3,
       label: 'Gemini metadata generation',

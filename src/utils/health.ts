@@ -7,7 +7,7 @@
  * gdrive) and, for gdrive, that Drive OAuth credentials are valid too.
  */
 import { env } from '../config/env.js';
-import { getDatabase, closeDatabase } from '../database/connection.js';
+import { getDatabase } from '../database/connection.js';
 import { createStorageProvider } from '../services/storage/storageProviderFactory.js';
 import { createGoogleDriveOAuthClient } from '../services/storage/gdriveAuth.js';
 import { createYouTubeOAuthClient } from '../services/youtube/youtubeAuth.js';
@@ -61,8 +61,6 @@ export async function healthCheck(): Promise<Array<{ check: string; ok: boolean;
     for (const result of results) {
         console.log(`${result.ok ? '✅' : '❌'} ${result.check}${result.detail ? ` — ${result.detail}` : ''}`);
     }
-
-    closeDatabase();
 
     return results;
 
