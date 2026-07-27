@@ -1,0 +1,53 @@
+{
+  "name": "youtube-ai-automation",
+  "version": "1.0.0",
+  "description": "Automated YouTube Shorts uploader that watches a local folder, generates SEO-optimized metadata with Google Gemini, and uploads videos via the YouTube Data API v3 on a configurable schedule.",
+  "type": "module",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "watch": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "serve":"node dist/server.js",
+    "dev" : "node src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"tests/**/*.test.ts\"",
+    "lint": "eslint \"src/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "migrate": "tsx src/database/migrate.ts",
+    "generate-refresh-token": "tsx scripts/generate-refresh-token.ts",
+    "generate-gdrive-refresh-token": "tsx scripts/generate-gdrive-refresh-token.ts",
+    "health-check": "tsx scripts/health-check.ts",
+    "dry-run": "tsx src/index.ts --dry-run",
+    "retry-failed": "tsx scripts/retry-failed.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "fastify": "^5.10.0",
+    "fs-extra": "^11.2.0",
+    "google-auth-library": "^9.14.1",
+    "googleapis": "^144.0.0",
+    "node-cron": "^3.0.3",
+    "pino": "^9.4.0",
+    "pino-pretty": "^11.2.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^22.7.4",
+    "@types/node-cron": "^3.0.11",
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "@typescript-eslint/parser": "^8.8.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
