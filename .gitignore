@@ -32,3 +32,5 @@ failed/*
 
 # OAuth tokens if ever cached locally
 token.json
+
+.todo

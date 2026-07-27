@@ -88,7 +88,16 @@ export class GDriveStorageProvider implements StorageProvider {
   }
 
   async downloadVideo(video: PendingVideo): Promise<string> {
-    const destination = path.join(this.tempDir, `${crypto.randomUUID()}-${video.filename}`);
+    await fs.ensureDir(this.tempDir);
+    logger.info({
+      tempDir: this.tempDir,
+      exists: await fs.pathExists(this.tempDir),
+    });
+
+    const destination = path.join(
+      this.tempDir,
+      `${crypto.randomUUID()}-${video.filename}`,
+    );
 
     await withRetry(() => this.downloadToPath(video.id, destination), {
       retries: 3,
@@ -121,11 +130,13 @@ export class GDriveStorageProvider implements StorageProvider {
     this.tempPathByFileId.delete(video.id);
   }
 
-  /** Removes the whole temp directory used for Drive downloads. */
+  /** Removes the files from temp directory used for Drive downloads. */
   async cleanup(): Promise<void> {
-    await fs.remove(this.tempDir).catch((error: unknown) => {
-      logger.warn({ err: error }, 'Failed to remove Google Drive temp directory');
+    for (const file of this.tempPathByFileId.values()) {
+      await fs.remove(file).catch((error: unknown) => {
+      logger.warn({ err: error }, 'Failed to remove Google Drive temp files');
     });
+    }
     this.tempPathByFileId.clear();
   }
 
