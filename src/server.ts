@@ -79,12 +79,11 @@ app.post('/upload', async (request: any, res: any) => {
     try {
         logger.info('Upload requested via HTTP');
 
-        await pipeline.run();
+        const resp = await pipeline.run();
 
-        return {
-            success: true,
-            message: 'Upload pipeline completed',
-        };
+        if(!resp.success) res.status(400).send(resp);
+
+        return resp;
     } catch (err) {
         logger.error(err, 'Pipeline execution failed');
 

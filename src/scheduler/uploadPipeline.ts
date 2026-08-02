@@ -6,6 +6,7 @@ import { YouTubeService } from '../services/youtube/youtubeService.js';
 import { hashFile } from '../utils/hash.js';
 import { logger } from '../utils/logger.js';
 import type { PrivacyStatus, UploadOptions } from '../types/index.js';
+import { validateVideo } from '../utils/validateVideo.js';
 
 export interface PipelineDependencies {
   storageProvider: StorageProvider;
@@ -37,7 +38,10 @@ export class UploadPipeline {
     return this.running;
   }
 
-  async run(options: PipelineOptions = {}): Promise<void> {
+  async run(options: PipelineOptions = {}): Promise<{ success: boolean, error: Array<string | null>, message: Array<string | null> }> {
+    let success = true;
+    let errors = [];
+    let messages = [];
     if (this.running) {
       throw new Error("Pipeline already running");
     }
@@ -56,17 +60,21 @@ export class UploadPipeline {
 
       logger.info({ file: video.filename }, 'Video discovered');
 
-      await this.processVideo(video, { dryRun, deps: this.deps });
+      const resp = await this.processVideo(video, { dryRun, deps: this.deps });
+      if (!resp.success) success = false;
+      errors.push(resp.error);
+      messages.push(resp.message);
     }
 
     logger.info('Cron finished');
     this.running = false
+    return { success, error: errors, message: messages }
   }
 
   private async processVideo(
     video: PendingVideo,
     ctx: { dryRun: boolean; deps: PipelineDependencies },
-  ): Promise<void> {
+  ): Promise<{ success: boolean, error: string | null, message: string | null }> {
     const { storageProvider, geminiService, youtubeService, uploadRepository } = ctx.deps;
 
     let localPath: string;
@@ -74,7 +82,7 @@ export class UploadPipeline {
       localPath = await storageProvider.downloadVideo(video);
     } catch (error) {
       logger.error({ file: video.filename, err: error }, 'Failed to prepare video for processing');
-      return;
+      return { success: false, error: JSON.stringify(error), message: null };
     }
 
     const fileHash = await hashFile(localPath).catch((error) => {
@@ -82,29 +90,31 @@ export class UploadPipeline {
       return null;
     });
 
-    if (fileHash) {
-      const duplicate = uploadRepository.findByFileHash(fileHash);
-      if (duplicate) {
-        logger.warn(
-          { file: video.filename, duplicateOf: duplicate.filename },
-          'Duplicate video detected by hash, skipping and moving to failed',
-        );
-        await storageProvider.moveToFailed(video);
-        await storageProvider.deleteTempFile(video);
-        return;
-      }
-    }
+    // if (fileHash) {
+    //   const duplicate = uploadRepository.findByFileHash(fileHash);
+    //   if (duplicate) {
+    //     logger.warn(
+    //       { file: video.filename, duplicateOf: duplicate.filename },
+    //       'Duplicate video detected by hash, skipping and moving to failed',
+    //     );
+    //     await storageProvider.moveToFailed(video);
+    //     await storageProvider.deleteTempFile(video);
+    //     return {success : false, error : "Duplicate Video - fileHash"};;
+    //   }
+    // }
 
-    const existing = uploadRepository.findByFilename(video.filename);
-    if (existing && existing.status === 'uploaded') {
-      logger.info({ file: video.filename }, 'Video already uploaded, skipping');
-      await storageProvider.deleteTempFile(video);
-      return;
-    }
+    // const existing = uploadRepository.findByFilename(video.filename);
+    // if (existing && existing.status === 'uploaded') {
+    //   logger.info({ file: video.filename }, 'Video already uploaded, skipping');
+    //   await storageProvider.deleteTempFile(video);
+    //   return {success : false, error : "Duplicate Video - fileName"};;
+    // }
 
-    const record = existing ?? uploadRepository.create(video.filename, fileHash);
+    const record = uploadRepository.create(video.filename, fileHash);
 
     try {
+      const isValidVideo = await validateVideo(localPath);
+      if (!isValidVideo) throw new Error("Failed to validate Video");
       uploadRepository.updateStatus(record.id, 'generating_metadata');
       const metadata = await geminiService.generateMetadata();
       logger.info({ file: video.filename, title: metadata.title }, 'Metadata generated');
@@ -116,7 +126,7 @@ export class UploadPipeline {
           'Dry run enabled: skipping actual upload',
         );
         await storageProvider.deleteTempFile(video);
-        return;
+        return { success: true, error: null, message: 'Dry run success' };
       }
 
       uploadRepository.updateStatus(record.id, 'uploading');
@@ -139,6 +149,7 @@ export class UploadPipeline {
 
       await storageProvider.moveToUploaded(video);
       await storageProvider.deleteTempFile(video);
+      return { success: true, error: null, message: 'Video Uploaded' };
     } catch (error) {
       const message = (error as Error).message ?? 'Unknown error during processing';
       logger.error({ file: video.filename, err: error }, 'Upload failed');
@@ -149,6 +160,7 @@ export class UploadPipeline {
       await storageProvider.deleteTempFile(video).catch((cleanupError) => {
         logger.error({ file: video.filename, err: cleanupError }, 'Failed to delete temp file');
       });
+      return { success: false, error: JSON.stringify(message), message: null };
     }
   }
 
