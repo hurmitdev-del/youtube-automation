@@ -36,8 +36,8 @@ COPY --from=builder /app/dist ./dist
 
 # Copy any runtime assets/config if they exist
 COPY --from=builder /app/docs ./docs
-COPY --from=builder /app/prompts ./prompts
-COPY --from=builder /app/templates ./templates
+# COPY --from=builder /app/prompts ./prompts
+# COPY --from=builder /app/templates ./templates
 
 # Cloud Run listens on PORT
 ENV PORT=8080
